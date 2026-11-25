@@ -1,3 +1,3 @@
-module github.com/veronaimars/cryptographers-core
+module github.com/ciphertls-io/core
 
 go 1.23
