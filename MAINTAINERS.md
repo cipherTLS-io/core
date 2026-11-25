@@ -6,4 +6,4 @@ See [GOVERNANCE.md](GOVERNANCE.md) for roles and the decision-making model.
 |---|---|
 | @veronaimars | all |
 
-> the cryptographer's core has a single founding maintainer. This list grows as maintainers are added.
+> CipherTLS Core has a single founding maintainer. This list grows as maintainers are added.

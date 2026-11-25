@@ -1,131 +1,182 @@
-# PRD — the cryptographer's terminal program
+# PRD — CipherTLS (`core`, `aitls`, `openssl-workshop`)
 
 | | |
 |---|---|
-| Maintainer | veronaimars |
-| Sponsor | veronaimars |
-| Status | draft |
-| Version · date | v0.1 · 2026-11-07 |
-| Decisions depended on | DR-001 (independence), DR-002 (language and shape, per repo), DR-003 (three repositories) |
-| Scope | the whole program: `cryptographers-core`, `openssl-workshop`, `cryptographers-terminal`. This file lives in the core because both products import it. |
+| Maintainer and requirements owner | veronaimars |
+| Status | companion-first direction selected; M6.0 spike in progress; technical targets unproved |
+| Version · date | v0.4 · 2026-11-24 |
+| Existing decisions | DR-001 independence; DR-002 language and shape; DR-003 repository boundaries and PRD placement; DR-004 retired-entry-point signpost; DR-008 companion-first delivery; DR-009 CipherTLS org (`ciphertls-io`) and rename |
+| Scope | Grounded OpenSSL companion first (`M6`), bounded NL evaluation (`M7`), later inspection/workshop (`M0`+); public requirements across `ciphertls-io/{core,aitls,openssl-workshop}` |
+
+This document defines the intended outcome. The [program map](program.md) identifies the owning
+records. Public requirements stay here; personal conference preparation and outreach stay in
+private planning. No sponsor relationship or endorsement is implied.
 
 ## 1. Problem and exposure
 
-- OpenSSL's documentation is current and changes often (about 145 commits to `doc/` in the three
-  months to 2026-11-07; `openssl-req` grew from 788 to 880 lines between 3.0 and master and lost its
-  ENGINE options). Teaching and reference material built on it goes stale without anyone noticing.
-- The maintainer's own 2025 teaching module is the example: it taught OpenSSL 1.1.1 (end of life
-  2023), a chain check that passed with a missing intermediate, and an RSA-only key match, and its
-  link has been circulating for a year. The link is the exposure: people are learning the wrong thing
-  under the maintainer's name today.
-- Operators have the same problem in a different shape: a finding about a chain or a server is only as
-  good as the version of the manual it was written against.
+**Unified mission:** CipherTLS makes real OpenSSL verifiable, version-accurate, and safe for both
+humans and AI agents — without hiding the binary, hallucinating flags, or handing secrets to a
+model.
+
+Why not just a plain terminal with a bag of tools (`openssl`, `step`, `man`) or a raw LLM in a
+shell? For an expert running a memorized one-off command, direct `openssl` is already faster. The
+plain-terminal baseline breaks down on three recurring failure modes:
+
+1. **Stack conflation:** On macOS and mixed hosts, `/usr/bin/openssl` (LibreSSL), Homebrew OpenSSL,
+   Python, Node, and `curl` routinely disagree; installing another Go/Rust CLI adds another verifier
+   rather than explaining the OpenSSL binary a system actually runs.
+2. **Silent manual and runbook drift:** Downstream docs, student labs, and LLM prompts routinely
+   cite EOL OpenSSL 1.1.1 flags or removed 3.x options against OpenSSL 4.x binaries.
+3. **Unbounded AI execution:** Letting an LLM type raw `openssl` shell commands hallucinates flags,
+   conflates exit-code-0 inspection with cryptographic trust, and leaks private keys into context.
+
+Deterministic grounding (`M6`) comes first because it is the guardrail that makes AI safe for
+cryptography (`aitls`). Its total upkeep must still be compared honestly against direct OpenSSL and
+manuals/browser (`R-18`); a feature list does not establish demand or maintenance savings. See
+[DR-008](decisions/DR-008-companion-first.md) and [DR-009](decisions/DR-009-ciphertls-org-and-rename.md).
+The chain-inspection and learning motivation remains later scope (`M0`+), not a prerequisite for
+proving the companion foundation.
+
+Learning material and operator explanations can drift from the OpenSSL release actually used.
+An apparently correct command may use the wrong trust inputs, and a correct explanation may
+refer to a different release. The intended product connects real artifact checks to the exact
+manual and execution context, then presents that evidence for a learner or an operator.
+
+The earlier draft reported problems in the maintainer's previous teaching material. Those are
+historical motivation, not acceptance evidence for the new implementation. Current proof comes
+from named fixtures and reproducible runs.
 
 ## 2. Goals and non-goals
 
 Goals
-- G1 Replace the circulating module with lessons that cite the manual for the release they run on and
-  are graded by the real binary; redirect the old link permanently.
-- G2 Make OpenSSL documentation change observable: a copy per release tag, a diff per command, a
-  nightly re-run of anything that cites a changed section.
-- G3 Give operators an inspection workbench whose findings come from the same checks and whose
-  explanations cite the same manual.
-- G4 One engine, two products, no duplicated knowledge.
+- G1 Provide a current learning path with observable learner-created output and release-specific
+  feedback, reachable from the retired teaching entry point.
+- G2 Make changes between cited release snapshots observable and route affected material to
+  revalidation and content review.
+- G3 Let an operator inspect an artifact and see the check, context and source behind a finding.
+- G4 Share verification and source knowledge across both products.
+- G5 Reduce repeated lookup/update effort without hiding the selected executable, source identity
+  or incomplete evidence. Compare the companion with the simpler baseline before expanding.
 
-Non-goals
-- A chatbot that answers from the docs without running anything.
-- Re-implementing any check OpenSSL can run itself.
-- A paid, hosted-paid or hybrid edition.
+Non-goals for the first delivery
+- A chatbot whose answer substitutes for a check.
+- Reimplementing cryptographic verification already provided by OpenSSL.
+- Broad policy coverage, generated courses, a browser sandbox or a complete TUI before the first
+  companion task works.
+- A paid or hybrid edition.
 
 ## 3. Actors
 
 | Id | Actor | Kind |
 |---|---|---|
-| A1 | Learner: knows the shell, does not know PKI | consumer |
-| A2 | Operator: audits real keys, chains, servers, captures | consumer |
-| A3 | Lesson author: edits YAML, does not write Go | contributor |
+| A1 | Learner with shell familiarity, learning PKI | consumer |
+| A2 | Operator inspecting cryptographic artifacts | consumer |
+| A3 | Lesson author | contributor |
 | A4 | Maintainer | operator |
-| A5 | OpenSSL project: source of the manuals; possible future endorser | external |
+| A5 | Upstream OpenSSL project, source of manuals and binaries | external; no endorsement presumed |
 
 ## 4. Requirements
 
-| R | Requirement | For | Phase |
+Stable IDs from v0.1 are retained. R-01–R-11 continue to govern the later chain/learning work.
+R-12–R-18 define the selected companion pilot. These are acceptance targets, not implemented behavior.
+
+| R | Required outcome | For | Delivery / acceptance |
 |---|---|---|---|
-| R-01 | The core copies `doc/` from `openssl/openssl` at a release tag, unmodified, with the tag and commit recorded, and indexes it to JSON | A3, A4 | core M0 |
-| R-02 | The core diffs options per command between two releases | A1, A2 | core M0 |
-| R-03 | A check runs the real `openssl` from a pinned release image and reads artifacts, never typed text | A1, A2 | core M0 |
-| R-04 | A lesson passes on every release it declares, in CI, on every pull request | A3 | workshop M0 |
-| R-05 | The site shows every command with the output captured by the run that graded it | A1 | workshop M0 |
-| R-06 | The earlier module's public link answers 301 to the new site | A1 | workshop M0 |
-| R-07 | When a cited section changes, the lessons that cite it are re-run that night and each failure opens one issue | A4 | workshop M2 |
-| R-08 | `inspect` prints parsed fields and findings from the core's checks for a set of artifacts | A2 | terminal M0 |
-| R-09 | `explain` answers from the index for the release `openssl version` reports and names the section | A1, A2 | workshop M4, terminal M0 |
-| R-10 | Private key material is hidden by default in the terminal | A2 | terminal M2 |
-| R-11 | Nothing a model writes is published or reported without a check passing and a person confirming | A4 | all |
+| R-01 | Source material is preserved unmodified with exact release and commit identity, and citations resolve to it | A3, A4 | core M0: snapshot and section-hash evidence |
+| R-02 | Users can identify changed command options between two recorded release snapshots | A1, A2 | core M0: known additions/removals on a named fixture |
+| R-03 | Artifact checks run the intended real OpenSSL with reproducible context; expected cryptographic failure differs from input/runtime failure | A1, A2 | core M0: positive, intended-negative and error cases; shared consumer contract |
+| R-04 | Author validation exercises every declared exact release; learner assessment reads the learner's submission without applying the reference solution | A1, A3 | workshop M0: untouched/wrong submissions fail and correct alternatives pass |
+| R-05 | Published command/output examples identify the actual captured run and release | A1 | workshop M0: page and run record agree |
+| R-06 | The retired teaching entry point leads readers to the published replacement | A1 | workshop M0: published replacement and retired-repository link, per DR-004; no HTTP 301 requirement |
+| R-07 | Changes to cited release snapshots select affected lessons for re-run and content review, with deduplicated failures | A3, A4 | workshop M2 + core M1: controlled affected/unaffected fixture; night-run target starts when a new snapshot is detected |
+| R-08 | Inspection reports parsed artifact fields and findings from shared checks | A2 | `aitls` M0: complete/incomplete chain and explicit trust context |
+| R-09 | Explanations cite the execution/source context of the finding; standalone queries explicitly select a release/context | A1, A2 | `aitls` M0; workshop M4: differing host release cannot change an attached citation |
+| R-10 | Sensitive artifact material is absent from default display, logs and persisted results from the first artifact-reading phase | A2 | `aitls` M0 and `core` M0: sensitive fixtures; M2 extends the checks to panes/cases |
+| R-11 | Model-generated material remains a draft until technical validation and a person's content review | A3, A4 | generation/publication phases: review and validation evidence |
+| R-12 | A small reference pack resolves the selected implementation/build to immutable source identity; unknown mappings never fall back to latest | A2, A4 | `core` M6: correct/mismatched/unsupported fixtures |
+| R-13 | Cached references work offline; failed refresh preserves last successful bytes and exposes age/error separately | A2, A4 | `core` M6: cached, missing-cache, unchanged, changed and failed-refresh cases |
+| R-14 | Explicit task selection reports certificate expiry through the chosen existing OpenSSL with typed inputs and bounded direct argv execution | A2 | `core`/`aitls` M6: known/expired/malformed/missing inputs, process error and literal paths; no trust verdict inferred |
+| R-15 | NL is an optional task selector; missing/ambiguous/unsupported requests cannot cause guessed execution; the base install works without a model | A2 | `core`/`aitls` M7: held-out language cases, deterministic baseline and no-NL installation |
+| R-16 | Reference changes identify affected consumers; executable changes also trigger checks; new explanatory/expected behavior is reviewed separately from fetching | A3, A4 | `core` M6: related/unrelated changes and a runtime change with unchanged prose |
+| R-17 | First-use docs, compatible core/pack pins and a clean-install preview reproduce the chosen task and accurately state limitations | A2 | `aitls` M6: captured first-use output and exercised installation; no scaffold-as-release claim |
+| R-18 | Total setup, repeated task and update-review effort is recorded against direct OpenSSL plus manuals/browser, including helper upkeep | A4 | `aitls` M6/M7: dated pilot record, agreed criteria and a continue/simplify decision; no invented savings |
 
 ## 5. Success metrics
 
-- The old link redirects and the new page's lessons pass on 3.5 and 4.1 in CI (G1): measured by the
-  workshop M0 gate.
-- Days between an OpenSSL doc change to a cited section and the lesson being re-run: target under 1
-  (G2): measured by the nightly workflow's log.
-- The terminal reports the dropped-intermediate case with the citation (G3): measured by the
-  terminal M0 gate.
-- Zero checks implemented twice across the three repos (G4): measured by `rules/` being the only
-  place a check is defined.
+- First companion: expiry output and reference match the selected context; unknowns/errors remain
+  explicit. Record baseline effort and the companion's upkeep (G5); no saving is yet measured.
+- Later shared journey: correct repair passes, untouched and wrong submissions fail, and the terminal
+  reports the same underlying observation with the same source context (G1, G3).
+- Reproducibility: a clean environment reproduces the named fixture outcomes using recorded
+  dependencies, images, inputs and time/trust context (G1, G3).
+- Drift: the controlled source-change case selects the affected lesson, leaves an unrelated one
+  alone and requests content review even when the command still passes (G2).
+- Shared knowledge: consumer contract tests demonstrate both products use the core result and
+  rule identity; duplicated verification logic is a review defect (G4).
+- Learning: an observed pilot records completion, help needed, misconceptions and performance on
+  a different artifact. A passing automated exercise alone does not establish learning.
 
 ## 6. Constraints and assumptions
 
-- Verified 2026-11-07: OpenSSL supported branches 3.0 through 3.6, 4.0, master; latest releases
-  4.1.0, 4.0.3, 3.6.5, 3.5.9, 3.4.8; `doc/` is Apache-2.0 with per-file notices.
-- Verified 2026-11-07: docs.openssl.org is generated from the same files by `openssl/openssl-docs`.
-- Reported (maintainer, 2026-11-07): the OpenSSL project asked the maintainer to pursue this work; the
-  learning repo carries OpenSSL's name as a dedicated workshop. A workshop for another toolkit would be
-  a separate repo.
-- Inferred: a container runtime is acceptable for operators and for CI; learners get a browser
-  sandbox later (workshop M5).
-- Constraint: sole maintainer; no employer, partner or sponsor code, data or infrastructure (DR-001).
-- Constraint: 100% open source, Apache-2.0; free public hosting (GitHub Pages) only.
+- Verified source, 2026-11-11: the [official downloads page](https://openssl-library.org/source/)
+  distinguishes supported releases from older versions. A branch or tag inventory is not a
+  support matrix. Resolve exact tested releases and record the matrix with each delivered build.
+- Public sources: [OpenSSL source](https://github.com/openssl/openssl) and
+  [documentation build](https://github.com/openssl/openssl-docs). Preserve applicable notices.
+- Existing decisions: independent work and Apache-2.0 under DR-001; implementation shape under
+  DR-002; repository ownership and public PRD under DR-003.
+- Assumptions to test: selected host builds can be mapped reliably; the later workshop audience
+  can use the selected container environment. A host inspection is not a service-level diagnosis.
+- Current state: scaffolds and design records; no working product release or completed product milestone.
 
 ## 7. Open decisions
 
+DR-004 is resolved by the [retired-entry-point record](decisions/DR-004-retired-entry-point.md),
+which preserves the maintainer's 2026-11-08 signpost decision. The earlier 301 requirement was stale.
+
 | DR | Question | Owner | Status |
 |---|---|---|---|
-| DR-004 | Where the old link's redirect is served from (the existing Netlify site as a one-file signpost, or DNS) | veronaimars | blocked on the URL |
-| DR-005 | Whether the shell tutor (`ask`) ships in the workshop or the terminal | veronaimars | proposed: workshop |
-| DR-006 | When and how to approach the OpenSSL project | veronaimars | after workshop M0 |
+| DR-005 | Where does the future shell tutor belong? | veronaimars | open; workshop remains the proposed location |
+| DR-006 | Whether and how to approach upstream about the work | veronaimars | private coordination; no outreach or endorsement claimed here |
+| DR-007 | What first shared journey and evidence contract should the products implement? | veronaimars | proposed later chain contract; first-delivery priority superseded by DR-008; M0 evidence pending |
+| DR-008 | Companion first, optional NL and replaceable source adapter | veronaimars | delivery direction selected 2026-11-12; technical evidence pending; supersedes chain-first priority |
 
 ## 8. Dependencies and risks
 
-- The core's release cadence gates both products; mitigated by building the core first and pinning.
-- Container builds of OpenSSL from source take minutes; mitigated by caching images in CI.
-- Lesson drift re-runs depend on the nightly index diff being correct; mitigated by the M1 gate.
-- A model drafting lessons can be wrong in ways the checks do not catch; mitigated by R-11.
+- Terminal M6 depends on core M6; M7 is optional. Later chain consumers independently depend on
+  core M0. No terminal-to-workshop dependency or mandatory external source service is introduced.
+- Source identity, execution errors and cryptographic outcomes can be confused; the draft
+  [evidence contract](design/evidence-contract.md) defines distinct states and negative cases.
+- Fixture self-validation can masquerade as learner achievement; R-04 separates the two paths.
+- Private-key masking can hide display while logs leak; R-10 starts at artifact ingestion.
+- Documents can agree while the product does not work; acceptance evidence is required before
+  availability claims or completion states change.
 
-## 9. Out of scope (v0.1)
+## 9. Out of scope (first usable delivery)
 
-- The TUI workbench, protocol explorer, key inventory and notebook (terminal v0.2 and later).
-- Rule sets beyond correctness (core M3).
-- Hosted pieces: model calls, sandboxes, practice servers.
+Broad TUI, protocol explorer, inventory, notebook, named policy sets, model-generated courses,
+remote practice targets and a browser sandbox. These remain roadmap direction, not prerequisites
+for proving the first companion task. They remain later possibilities, not release commitments.
 
 ## 10. Approval
 
-| Role | Handle | Date |
+| Role | Handle | Date / state |
 |---|---|---|
-| Sponsor | veronaimars | |
+| Requirements owner | veronaimars | companion-first setup selected 2026-11-12; detailed targets remain unproved and subject to implementation review |
 
 ## Annex A — Basis of stated facts
 
-| Claim | Label | Source |
+| Claim | Label | Basis |
 |---|---|---|
-| Supported branches and latest releases | verified | `git ls-remote --tags` on openssl/openssl, 2026-11-07 |
-| ~145 `doc/` commits in three months | verified | `git log --since=2026-08-07 -- doc/` on openssl/openssl master, 2026-11-07 |
-| `openssl-req.pod.in` 788 → 880 lines, ENGINE options removed | verified | `wc -l` and diff at tags openssl-3.0 and master, 2026-11-07 |
-| Old module teaches 1.1.1, bad chain check, RSA-only key match | verified | commands run against the archived module and OpenSSL 3.6.4, 2026-11-07 |
-| docs.openssl.org built from the same files | verified | openssl/openssl-docs README, 2026-11-07 |
+| Support differs from branch/tag presence | verified public source | Official downloads page, checked 2026-11-11 |
+| The three projects are scaffolds | verified checkout | Go entry points, pending M0 scripts, phase ledgers and setup reviews |
+| The former contracts conflict | verified document inspection | DR-007 identifies the conflicting design/phase statements |
+| Later chain journey is a useful learning/inspection boundary | proposed | Requested rework and the two products' common dependency; not user-research evidence |
 
 ## Change log
 
 | Version | Date | Change |
 |---|---|---|
-| v0.1 | 2026-11-07 | first draft: problem, actors, requirements mapped to repo phases |
+| v0.1 | 2026-11-07 | Initial problem, actors and R-01–R-11 mapping; retained in Git history |
+| v0.2 | 2026-11-11 | Preserve IDs; clarify assessment, provenance, release-context explanation, early sensitive-input handling and draft status; separate public contracts from private coordination |
+| v0.3 | 2026-11-12 | Add R-12–R-18 and DR-008 for companion-first delivery; retain earlier IDs and separate technical acceptance from maintenance/user-value evidence |

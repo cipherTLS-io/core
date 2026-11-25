@@ -1,5 +1,10 @@
 # Contributing
 
+Current work: M6 reference and read-only expiry bridge, then optional M7 NL comparison.
+The existing container-check rules below apply to later chain work; the companion's explicit
+host execution contract is in [the companion design](docs/design/companion.md).
+
+
 Thank you for looking. This page is the whole workflow; nothing is hidden in a wiki.
 By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -7,7 +12,7 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 - Checks and rule sets are files under `rules/`. A check runs the real `openssl` inside the pinned
   release image and reads artifacts, never typed text. Every check cites a manual page and section.
-- `corpus/` is never edited by hand; `cryptocore corpus build` regenerates it from the tagged source.
+- `corpus/` is never edited by hand; `ciphertls-core corpus build` regenerates it from the tagged source.
 - `pkg/` is what the two products import. A change to its surface needs a design note in
   `docs/design/` first, and lands in a release before either product consumes it.
 
@@ -15,7 +20,7 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 - **Discussions** for questions, ideas and show-and-tell.
 - **Issues** for work with a proving command. Blank issues are off; pick a template.
-- Issues labelled `good first issue` are complete, bounded and need no prior context.
+- Confirm that a labelled issue has a working proving command and satisfied prerequisites before taking it.
   `help wanted` marks work the maintainer would like a hand with.
 - Open an issue or a design document (`docs/design/`) before a large change; small fixes can go
   straight to a pull request.
@@ -25,12 +30,19 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 One command is the commit gate for this repository and CI runs the same thing:
 
 ```
-hack/check.sh
+sh hack/ci.sh
 ```
 
-It fails on any real name, private path, employer or partner name, or money figure, so handles
-only. For Go repositories the CI workflow also runs `gofmt -l`, `go vet` and `go build`, and
-checks that every unmet phase gate in `hack/acceptance/` still exits non-zero.
+Requires Go from `go.mod` and Python 3.9 or newer (standard library only). The same command
+runs formatting enforcement, vet, Go tests/build, the privacy scrub, acceptance-dispatch tests
+and the milestone manifest. Implemented gates must pass. Declared skeletons remain PENDING;
+a green commit gate does not certify a product milestone. Manual checks remain pending until run.
+
+Use `python3 hack/acceptance.py --phase M6` to demand actual M6 acceptance; it fails while M6 is
+a skeleton. `requires` in the manifest lists host capabilities; dependencies live in PHASES.
+The dispatcher validates milestone IDs and gate paths, not the complete YAML schema or remote
+repository readiness. Check cross-repository dependency evidence at the pinned consumer revision.
+See [agent review instructions](AGENTS.md) and [setup review](docs/setup-review.md).
 
 ## Developer Certificate of Origin
 

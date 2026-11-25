@@ -1,6 +1,6 @@
 # Governance
 
-> **Status: bootstrapping.** the cryptographer's core has a single founding maintainer. This document describes
+> **Status: bootstrapping.** CipherTLS Core has a single founding maintainer. This document describes
 > the model the project grows into; the thresholds below become operative as the maintainer
 > count grows. [MAINTAINERS.md](MAINTAINERS.md) reflects the current reality.
 

@@ -16,7 +16,7 @@ labels: bug
 
 ### Versions
 
-- cryptographers-core: `<git sha or release>`
+- ciphertls-io/core: `<git sha or release>`
 - OpenSSL in the image or on the host: `openssl version`
 - OS and container runtime:
 

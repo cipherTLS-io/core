@@ -1,26 +1,21 @@
-# Rules
+# Rule authoring
 
-Checks and rule sets as files, one directory per rule set: `rules/<set>/<slug>.yaml`.
-`rules/correctness/` holds the checks that say whether an artifact is what it claims to be;
-named rule sets (FIPS 140-3, NIST SP 800-52, CA/Browser Forum baseline, Mozilla) arrive in M3.
+Status: draft M0 schema; no rule parser or execution engine exists yet.
 
-A check runs a real OpenSSL command inside the pinned container and compares the result; it
-reads the artifacts it is handed, never typed text. Schema (draft, fixed in M0.3):
+Reusable verification lives here. Products reference a rule ID and bind named artifact inputs;
+they do not duplicate verification commands. See [the chain rule](correctness/chain.yaml) and
+[the shared evidence contract](../docs/design/evidence-contract.md).
 
-```yaml
-id: correctness/chain
-versions: ["3.5", "4.1"]
-cites:
-  - page: openssl-verify        # man1 page name
-    section: OPTIONS
-    option: -untrusted
-inputs: [root.pem, int.pem, leaf.pem]
-checks:
-  - run: openssl verify -CAfile root.pem -untrusted int.pem leaf.pem
-    expect: "leaf.pem: OK"
-  - run: openssl verify -CAfile root.pem leaf.pem
-    expect_fail: true
-```
+A check declares an `argv` vector with named input placeholders, an expected cryptographic
+outcome and, for an invalid outcome, its specific reason. The runner resolves paths within the
+allowed input mount and passes arguments without constructing a shell command from user input.
+Missing inputs, invalid bindings, timeouts and runtime errors cannot satisfy a negative assertion.
 
-`expect` is a substring of stdout; `expect_fail` asserts a non-zero exit. Richer artifact
-assertions (subject, key type, extensions) arrive with M2.
+The rule's release aliases resolve to exact recorded versions before execution. Each result
+records the source, image, rule and input identities and explicit trust/time/configuration context.
+Author tests must distinguish complete chain, intended invalid chain and unrelated execution error.
+The future parser must reject unknown fields and unresolved placeholders.
+
+The workshop's reference solution is author-validation data. Actual assessment uses the learner's
+submission. The terminal interprets the observed outcome; it does not reuse learner pass/fail as
+an operator diagnosis. New policy sets remain later roadmap work.

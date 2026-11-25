@@ -1,82 +1,89 @@
-# cryptographers-core
+# ciphertls-io/core
 
-The engine both products call: OpenSSL's documentation copied by release tag and indexed, option
-diffs between versions, pinned release images, and checks that run the real binary against real
-artifacts.
+**Availability: scaffold + M6.0 spike; no working product release is claimed.** The examples below
+illustrate planned behavior. Start with the [current quickstart](docs/user/README.md),
+[limitations](docs/user/limitations.md), [setup gaps](docs/setup-review.md), and
+[design](docs/DESIGN.md).
 
-Working title: **the cryptographer's core**. Maintainer: veronaimars. Apache-2.0.
+**CipherTLS** makes real OpenSSL verifiable, version-accurate, and safe for both humans and AI
+agents — without hiding the binary, hallucinating flags, or handing secrets to a model.
 
-## What it does
+This repository (`ciphertls-io/core`, binary `ciphertls-core`) is the **ground-truth engine**
+under [aitls](https://github.com/ciphertls-io/aitls) and
+[openssl-workshop](https://github.com/ciphertls-io/openssl-workshop). It has no user interface of
+its own. Deterministic grounding (`M6`) comes first because it is the guardrail that makes AI safe
+for cryptography: identify the explicitly selected OpenSSL build, bind an immutable upstream manual
+snapshot, and run reviewed read-only tasks through a typed, shell-free bridge. Optional
+natural-language task selection (`M7`) is evaluated against that deterministic baseline; container
+checks (`M0`+) and workshop lessons remain later slices.
 
-For any supported OpenSSL release, from OpenSSL's own files, it answers three questions:
+Selected direction: [program map](docs/program.md), [companion design](docs/design/companion.md),
+[DR-008](docs/decisions/DR-008-companion-first.md), and
+[DR-009](docs/decisions/DR-009-ciphertls-org-and-rename.md). **M6** is the first delivery target.
 
-- **What does this mean here?** The manual section for a command or option, in the version in
-  front of you, cited by page and section.
-- **What changed?** Options added, removed or reworded between two releases, per command.
-- **Is this right?** A check that runs the real `openssl` from the pinned release image against
-  the artifact you hand it, measured against a named rule set, and says why.
+Maintainer: `veronaimars`. License: Apache-2.0.
 
-Two products call it: [openssl-workshop](https://github.com/veronaimars/openssl-workshop)
-(lessons for people learning) and [cryptographers-terminal](https://github.com/veronaimars/cryptographers-terminal)
-(inspection for people operating). The core does not know which one is calling and has no user
-interface of its own beyond a CLI for building and testing.
+## Why not just `openssl` + `man` or a raw LLM in a shell?
 
-## A look (mockup of the M0 target)
+- **Adding another crypto tool adds another TLS stack.** On macOS, `/usr/bin/openssl` (LibreSSL),
+  Homebrew OpenSSL, Python, Node, and `curl` already disagree (see [DESIGN.md §2](docs/DESIGN.md#2-the-core-constraint)).
+- **Manuals and runbooks drift silently.** Downstream guides and AI prompts routinely cite EOL
+  OpenSSL 1.1.1 flags or removed 3.x options against OpenSSL 4.x binaries.
+- **Raw LLMs in a shell have no guardrails.** They guess removed flags, build shell strings from
+  untrusted paths, confuse exit-code-0 inspection with cryptographic trust, and read private keys
+  into transcripts.
+
+`core` solves the shared half once: exact binary identity, immutable upstream doc snapshots,
+selective drift detection, and a typed `companion-result/v1` contract that separates execution
+errors, observations, and cryptographic assertions.
+
+## A look (`v0.1` M6 target — illustrative, not yet captured from a release)
 
 ```text
-$ cryptocore corpus diff 3.0 4.1 openssl-req
-openssl-req(1)   openssl-3.0.18 → openssl-4.1.0
-  + -not_before <date>      OPTIONS
-  + -not_after <date>       OPTIONS
-  + -cipher <name>          OPTIONS
-  + -quiet                  OPTIONS
-  + -x509v1                 OPTIONS
-  - -keygen_engine <id>     OPTIONS   (ENGINE support removed)
-  ~ -newkey <arg>           OPTIONS   text changed, 12 lines
+$ ciphertls-core doc --binary /opt/homebrew/bin/openssl x509 -enddate
+binary:   /opt/homebrew/bin/openssl  (OpenSSL 4.1.0, 23 Oct 2026)
+source:   openssl/openssl@openssl-4.1.0  doc/man1/openssl-x509.pod.in (sha256: <pinned>)
+section:  OPTIONS / -enddate   last_checked: 2026-11-24T00:00:00Z (offline-ok)
+  Prints out the expiry date of the certificate, that is the notAfter date.
 
-$ cryptocore check run rules/correctness/chain.yaml --version 4.1 ./certs
-[openssl 4.1.0] correctness/chain
-  ✘ openssl verify -CAfile root.pem -untrusted int.pem leaf.pem
-      int.pem: no such file in ./certs
-      cites openssl-verify(1) OPTIONS -untrusted
-  –  openssl verify -CAfile root.pem leaf.pem   (skipped: inputs incomplete)
-1 check failed, 1 skipped. exit 1
+$ ciphertls-core task run certificate.expiry --binary /opt/homebrew/bin/openssl --cert leaf.pem
+plan:     /opt/homebrew/bin/openssl x509 -in leaf.pem -noout -enddate
+status:   completed (exit 0)
+observed: notAfter=Nov 24 21:00:00 2027 GMT  (2027-11-24T21:00:00Z)
+verdict:  none (expiry observation only; not trust, hostname, or revocation validation)
 ```
 
-Every line above is either a copy of OpenSSL's own words or a pointer to the section it came from.
+*Illustrative output only, not a captured release run. Published examples must come from real
+acceptance runs once M6 ships.*
 
-## Why
+## Later roadmap (`M0`+ shared engine)
 
-OpenSSL keeps its documentation current and changes it often; material built on top goes stale
-without anyone noticing. Copying the manuals by release tag makes every change observable. Running
-the real binary, never a re-implementation, makes a check that cannot drift from OpenSSL itself.
+After `M6`/`M7`, `core` adds pinned release containers, full-corpus option diffs across releases,
+and shared verification rules for both `aitls` and `openssl-workshop`. See [ROADMAP.md](ROADMAP.md)
+and [docs/PHASES.md](docs/PHASES.md).
 
-## Status
+## Status & Layout
 
-Scaffold. Nothing runs yet. Delivery state: `docs/PHASES.md`, proven by `hack/acceptance/`.
-Direction: `ROADMAP.md`. Design: `docs/DESIGN.md`. Decisions: `docs/decisions/`. The program's PRD,
-covering all three repos: `docs/PRD.md`.
-
-## Layout
+Scaffold + `M6.0` spike. Delivery state lives in [docs/PHASES.md](docs/PHASES.md), proven by
+[hack/acceptance/phases.json](hack/acceptance/phases.json). Program PRD: [docs/PRD.md](docs/PRD.md).
 
 | Path | What |
 |---|---|
-| `cmd/cryptocore/` | the CLI (`corpus build`, `corpus diff`, `help capture`, `check run`) |
-| `pkg/` | the Go API the two products import: corpus, diff, check, sandbox (created in M0) |
-| `corpus/` | OpenSSL manuals copied by release tag, plus the generated index; see `THIRD_PARTY.md` |
-| `images/` | one Containerfile per supported OpenSSL release, built from the tagged source |
-| `rules/` | checks and rule sets as files; `rules/correctness/` first |
-| `docs/` | design, phases, decisions |
-| `hack/` | `check.sh` (scrub) and the acceptance gates |
+| `cmd/ciphertls-core/` | CLI entry point (scaffold stub until M6.1) |
+| `pkg/` | Package boundaries: `pkg/reference`, `pkg/bridge`, optional `pkg/nl` (M6/M7); later `corpus`, `check`, `sandbox`, `host` |
+| `packs/` | Reference, workflow, and optional NL pack boundaries |
+| `corpus/` | OpenSSL manuals copied by release tag (M0+); see `THIRD_PARTY.md` |
+| `rules/` | Shared correctness and policy rules (`rules/correctness/` first) |
+| `docs/` | `PRD.md`, `program.md`, `DESIGN.md`, `design/companion.md`, `PHASES.md`, `decisions/`, `user/` |
+| `hack/` | `ci.sh` (local commit gate), `check.sh` (privacy scrub), `acceptance.py`, `spike/` |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md): the gate, the DCO sign-off (`git commit -s`), the commit
-grammar, and what happens after you open an issue or a pull request. Governance is in
-[GOVERNANCE.md](GOVERNANCE.md) and [MAINTAINERS.md](MAINTAINERS.md); security reports go through
-[SECURITY.md](SECURITY.md). Issues labelled `good first issue` need no prior context.
+See [CONTRIBUTING.md](CONTRIBUTING.md): run `sh hack/ci.sh` locally, sign off every commit
+(`git commit -s`), follow Conventional Commits, and read [GOVERNANCE.md](GOVERNANCE.md),
+[MAINTAINERS.md](MAINTAINERS.md), and [SECURITY.md](SECURITY.md).
 
 ## Licence
 
-Apache-2.0 (`LICENSE`). OpenSSL's documentation under `corpus/` keeps its own Apache-2.0 notices;
-see `THIRD_PARTY.md` and `NOTICE`.
+Apache-2.0 ([LICENSE](LICENSE)). OpenSSL documentation under `corpus/` keeps its own Apache-2.0
+notices; see [THIRD_PARTY.md](THIRD_PARTY.md) and [NOTICE](NOTICE).

@@ -2,13 +2,29 @@
 
 Grouped by minor version. What a version contains is the promise; when it ships is not. Delivery
 state lives in `docs/PHASES.md` and is proven by `hack/acceptance/phases.json`; this file never
-claims more than the ledger does.
+claims more than the ledger does. Entries without ledger rows are uncommitted direction,
+not ready work. All versions below are planned; none is a release claim.
 
-One Go module and one binary, `cryptocore`. The corpus is OpenSSL's own `doc/` tree copied at each
-release tag and indexed to JSON. Checks are files that run the real `openssl` inside a pinned
-release image. Products import the packages; nothing here draws a screen.
+One Go module, with reference and deterministic bridge packages first. M6 uses an explicitly
+selected existing OpenSSL executable for one read-only task. Container checks remain later scope.
+NL is an optional adapter; no model is selected or bundled. See [DR-008](docs/decisions/DR-008-companion-first.md).
+Phase IDs are stable identifiers, not delivery order. Earlier version groupings below are replanned.
 
-## v0.1 — the three answers for one command
+## Reading order (why M6 comes before M0)
+
+> Phase IDs are permanent identifiers (never renumbered once cited in issues and decision records).
+> Under [DR-008](docs/decisions/DR-008-companion-first.md), delivery order is **`M6` (v0.1 companion
+> foundation) → optional `M7` (NL router eval) → `M0`–`M2` (later container engine & corpus)**.
+
+## v0.1 target — companion foundation
+
+- M6 applicable reference pack, offline lookup, explicit read-only `certificate.expiry`, versioned
+  result, affected-workflow change records and a provisional consumer API without an NL runtime
+- Optional M7 experiment: task ID and typed slots from natural language, measured against a
+  deterministic baseline; proceed only if accuracy and upkeep justify the extra dependency
+- Exact supported builds, source mapping and resource limits are findings required by M6.0
+
+## Later — the three answers for one chain command
 
 - M0 walking skeleton: two release images, the corpus and diff for one command, one check run in a
   container, the host probed, all from a fresh clone
@@ -17,7 +33,7 @@ release image. Products import the packages; nothing here draws a screen.
 - M2 checks as files and a stable API: `pkg/corpus`, `pkg/check`, `pkg/sandbox` the products
   import; the correctness rule set
 
-## v0.2 — rule sets and the library manual
+## Later — rule sets and the library manual
 
 - M3 named rule sets beyond correctness: FIPS 140-3, NIST SP 800-52, CA/Browser Forum baseline,
   Mozilla; each finding cites the rule and the manual section
